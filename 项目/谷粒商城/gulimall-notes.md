@@ -245,7 +245,7 @@ public class Main {
 
 ### 3.4 CompletableFuture
 
-一般使用
+#### 3.4.1 一般使用
 
 ```java
 //        CompletableFuture.runAsync(() -> {
@@ -297,7 +297,7 @@ public class Main {
 
 
 
-线程串行化
+#### 3.4.2 线程串行化
 
 ```java
 public class FutureTest {
@@ -351,4 +351,153 @@ public class FutureTest {
     }
 }
 ```
+
+#### 3.4.3 两任务组合，都要完成
+
+```java
+         /**
+         * 两个都完成
+         */
+        CompletableFuture<Integer> future1 = CompletableFuture.supplyAsync(() -> {
+            System.out.println("任务1Runnable start: " + Thread.currentThread().getId());
+            int i = 10 / 3;
+            System.out.println("任务1Runanble end: " + i);
+            return i;
+        }, executor);
+
+        CompletableFuture<String> future2 = CompletableFuture.supplyAsync(() -> {
+            System.out.println("任务2Runnable start: " + Thread.currentThread().getId());
+            int i = 10 / 3;
+            System.out.println("任务2Runanble end: " + i);
+            return "hello";
+        }, executor);
+
+        //         runAfterBoth 获取不到前面流程的执行结果
+//        future1.runAfterBothAsync(future2, () -> {
+//            System.out.println("任务3 start");
+//        }, executor);
+
+        // 可以接收到前面的结果
+        //    /**
+        //     * Performs this operation on the given arguments.
+        //     * @param t the first input argument
+        //     * @param u the second input argument
+        //     */
+        //    void accept(T t, U u);
+//        future1.thenAcceptBothAsync(future2, (f1, f2) -> {
+//            System.out.println("任务3 Runnable start: " + Thread.currentThread().getId());
+//            System.out.printf("%s %s", f1, f2);
+//        }, executor);
+
+        // 可以有返回值
+//        System.out.println(future1.thenCombine(future2, (f1, f2) -> {
+//            return f1 + ": " + f2 + " -> hello";
+//        }).get());
+```
+
+
+
+#### 3.4.4 两任务组合，有一个完成
+
+```java
+        /**
+         * runAfterEitherAsync 不感知处理结果
+         */
+//        future1.runAfterEitherAsync(future2, () -> {
+//            System.out.println("任务3看是");
+//        }, executor);
+
+        /**
+         * 可以感知到处理结果，但是不能返回结果
+         */
+//        future1.acceptEitherAsync(future2, (res) -> {
+//            System.out.println(res);
+//            System.out.println("3");
+//        }, executor);
+
+        System.out.println(future1.applyToEitherAsync(future2, (res) -> {
+            return res + "333";
+        }, executor).get());
+
+        executor.shutdown();
+```
+
+
+
+#### 3.4.5 多任务组合
+
+
+
+```java
+// 全执行完
+CompletableFuture<Void> future = CompletableFuture.allOf(future1, future2);
+// 等待所有结果做完
+future.get();
+
+// 任意一个执行完
+CompletableFuture.anyOf(future1, future2);
+...get..
+```
+
+
+
+## 4.视图映射
+
+通过SpringMVC提供的功能
+
+```java
+@Configuration
+public class GulimallWebConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addViewControllers(ViewControllerRegistry registry) {
+
+        /**
+         * 替代
+         * @GetMapping("/login.html")
+         * public String loginPage() { return "login"; }
+         */
+        registry.addViewController("/login.html").setViewName("login");
+        registry.addViewController("/reg.html").setViewName("reg");
+    }
+}
+
+```
+
+
+
+## 5.model数据在重定向的数据丢失问题
+
+非转发，重定向的时候model数据会丢失
+
+因此需要使用另外的RedirectAttributes
+
+```java
+    @PostMapping("/regist")
+    public String regist(@Valid UserRegistVo vo, BindingResult result, RedirectAttributes redirectAttributes) {
+        if(result.hasErrors()) {
+            Map<String, String> errors = result.getFieldErrors().stream().collect(Collectors.toMap(FieldError::getField, DefaultMessageSourceResolvable::getDefaultMessage));
+            redirectAttributes.addFlashAttribute("errors", errors);
+            // model在重定向的时候数据会丢失
+            // model.addAttribute("errors", errors);
+
+            // Request Method 'POST' not supported
+            // 用户注册 -> /regist[post] -> 转发/reg.html （路径映射默认都是get方式访问的)，
+            // 为了避免这个错误，可以不使用forward，而是交给系统自己拼接
+
+            // 校验出错，回到注册页
+//            return "forward:/reg.html";
+//            return "reg";
+            return "redirect:/reg.html";
+        }
+
+        return "redirect:/login.html";
+    }
+```
+
+不过上面这种重定向方式，会重定向到当前服务的的端口，例如localhost:port/reg.html
+
+并不会重定向到域名下，例如auth.gulimall.com/reg.html
+
+
 
