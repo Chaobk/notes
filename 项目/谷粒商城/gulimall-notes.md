@@ -501,3 +501,54 @@ public class GulimallWebConfig implements WebMvcConfigurer {
 
 
 
+## 6.Java存储Redis数据的奇怪数据问题
+
+```java
+public class LoginServiceImpl implements LoginService {
+
+    @Autowired
+    private ThirdPartyFeignService thirdPartyFeignService;
+
+    @Autowired
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Override
+    public R sendCode(String phone) {
+        String redisSaveName = AuthConstant.SMS_CODE_CACHE_PREFIX + phone;
+        String redisCode = redisTemplate.opsForValue().get(redisSaveName);
+        if (redisCode != null) {
+            long codeTime = Long.parseLong(redisCode.split("_")[1]);
+            if (System.currentTimeMillis() - codeTime < 60 * 1000) {
+                // 60s内不能再发
+                return R.error(BizCodeEnum.SMS_CODE_EXCEPTION.getCode(), BizCodeEnum.SMS_CODE_EXCEPTION.getMsg());
+            }
+        }
+
+        // 1.接口防刷 TODO
+
+        // 2.验证码校验 redis
+        // 2.1 存key key-phone, value-code  sms:code:phone -> 123456
+        String originCode = UUID.randomUUID().toString().substring(0, 5);
+        String code = originCode + "_" + System.currentTimeMillis();
+        redisTemplate.opsForValue().set(redisSaveName, code, 10, TimeUnit.MINUTES);
+
+        thirdPartyFeignService.sendCode(phone, originCode);
+        return R.ok();
+    }
+}
+```
+
+代码中，RedisTemplate中的泛型是否指定是有影响的，不指定泛型，存储的数据会有一个奇怪的前缀存储在Redis中，例如：
+
+```java
+\xac\xed\x00\x05t\x00\x14sms:code:17393116826
+```
+
+如果把泛型指定了，也就是RedisTemplate<String, String>这种，就可以避免前缀的影响：
+
+```java
+sms:code:17393116826
+```
+
+
+
