@@ -552,3 +552,29 @@ sms:code:17393116826
 
 
 
+## 7.Gitee OAuth使用
+
+### 7.1 接入第三方认证
+
+[Gitee OAuth 文档](https://gitee.com/api/v5/oauth_doc#/)
+
+
+
+### 7.2 换取access_token
+
+code换取access_token的操作只能有一次
+
+同一个用户的accessToken一段时间是不会变化的，即使多次获取
+
+
+
+### 7.3 Session共享问题
+
+![image-20231119150924996](https://chaobk-img-repo.oss-cn-shanghai.aliyuncs.com/image-20231119150924996.png)
+
+
+
+#### 7.3.1 分布式下session共享问题
+
+* 同一个服务，复制多分，session不同步问题
+* 不同服务，session不能共享问题
