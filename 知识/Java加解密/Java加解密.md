@@ -64,3 +64,22 @@ public class Base64Util {
 
 ### 2.2 代码示例
 
+md5属于摘要算法，Java本身并没有提供处理后的还原能力。
+
+```java
+public class MD5Util {
+    public static void main(String[] args) throws NoSuchAlgorithmException {
+        String str = "Hello, world!";
+        byte[] digest = encryptByMD5(str.getBytes(StandardCharsets.UTF_8));
+        System.out.println(Arrays.toString(digest)); // [108, -45, 85, 109, -21, 13, -91, 75, -54, 6, 11, 76, 57, 71, -104, 57]
+    }
+
+    public static byte[] encryptByMD5(byte[] bytes) throws NoSuchAlgorithmException {
+        MessageDigest md5 = MessageDigest.getInstance("MD5");
+        return md5.digest(bytes);
+    }
+}
+```
+
+
+
